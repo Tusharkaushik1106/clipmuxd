@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0d12">
+<title>clipmuxd</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font: 15px/1.45 -apple-system,Segoe UI,Roboto,sans-serif;
+    background:#0b0d12; color:#e7e9ee; min-height:100vh;
+    padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
+    max-width: 960px; margin-inline: auto;
+  }
+  h1 { font-size: 18px; margin: 4px 0 14px; display:flex; align-items:center; gap:8px; }
+  h1 .dot { width:8px; height:8px; border-radius:50%; background:#ef4444; }
+  h1 .dot.on { background:#22c55e; }
+  .card { background:#151924; border:1px solid #222838; border-radius:14px; padding:12px; margin-bottom:12px; }
+  textarea, input[type=file] { width:100%; background:#0d1018; color:#e7e9ee; border:1px solid #222838;
+    border-radius:10px; padding:10px; font: inherit; }
+  textarea { min-height: 90px; resize: vertical; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; }
+  button { background:#3b82f6; color:white; border:0; border-radius:10px; padding:9px 13px;
+    font: 600 14px inherit; cursor:pointer; }
+  button.secondary { background:#252b3d; color:#cdd3e0; }
+  button.danger { background:#3a1f28; color:#fca5a5; }
+  button:disabled { opacity:.5; }
+  .tabs { display:flex; gap:6px; overflow-x:auto; margin-bottom:10px; padding-bottom:2px; }
+  .tabs button { flex: 0 0 auto; background:#161b28; color:#a8b2c5; border:1px solid #222838; }
+  .tabs button.active { background:#3b82f6; color:white; border-color:#3b82f6; }
+  .tabs .count { display:inline-block; margin-left:6px; background:#0b0d12; color:#a8b2c5; border-radius:10px;
+    padding:0 6px; font-size:11px; line-height:18px; vertical-align:1px; }
+  .tabs button.active .count { background:rgba(0,0,0,.25); color:#fff; }
+  .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap:8px; }
+  .thumb { position:relative; aspect-ratio:1; background:#0d1018; border:1px solid #222838; border-radius:10px;
+    overflow:hidden; display:flex; align-items:center; justify-content:center; }
+  .thumb img, .thumb video { width:100%; height:100%; object-fit:cover; }
+  .thumb .name { position:absolute; left:0; right:0; bottom:0; padding:4px 6px; font-size:11px;
+    background:linear-gradient(transparent, rgba(0,0,0,.75)); color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .thumb .bar { position:absolute; right:4px; top:4px; display:flex; gap:4px; }
+  .thumb .bar button { padding:4px 7px; font-size:11px; }
+  .item { padding:10px 0; border-top:1px solid #222838; display:flex; gap:10px; align-items:flex-start; }
+  .item:first-child { border-top:0; }
+  .item .meta { font-size:12px; color:#8892a6; }
+  .item pre { white-space:pre-wrap; word-break:break-word; margin:4px 0 0; font: inherit; }
+  .item .actions { margin-left:auto; display:flex; gap:6px; flex-wrap:wrap; }
+  .item .actions button { padding:6px 10px; font-size: 13px; }
+  .empty { color:#6b7590; text-align:center; padding:24px 0; }
+  .toast { position:fixed; left:50%; bottom:20px; transform:translateX(-50%);
+    background:#22c55e; color:#052e13; padding:10px 14px; border-radius:10px; font-weight:600;
+    opacity:0; transition:opacity .2s; pointer-events:none; z-index:10; }
+  .toast.show { opacity:1; }
+  .progress { height:4px; background:#1a2030; border-radius:3px; overflow:hidden; margin-top:8px; display:none; }
+  .progress.on { display:block; }
+  .progress > div { height:100%; background:#3b82f6; width:0; transition: width .15s; }
+  a { color:#7dd3fc; word-break: break-all; }
+  .link-row a { display:block; }
+  .modal { position:fixed; inset:0; background:rgba(0,0,0,.85); display:none; align-items:center; justify-content:center; z-index:20; padding:12px; }
+  .modal.on { display:flex; }
+  .modal img, .modal video { max-width:100%; max-height:100%; border-radius:8px; }
+  .modal .close { position:absolute; top:12px; right:12px; }
+</style>
+</head>
+<body>
+  <h1><span class="dot" id="dot"></span> clipmuxd</h1>
+
+  <div class="card">
+    <textarea id="text" placeholder="Paste text or a link. Ctrl+Enter to send."></textarea>
+    <div class="row" style="margin-top:8px;">
+      <button id="sendText">Send → PC clipboard</button>
+      <button class="secondary" id="pasteBtn">Paste</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <input type="file" id="file" multiple>
+    <div class="progress" id="prog"><div></div></div>
+    <div class="row" style="margin-top:8px;">
+      <button id="sendFile">Send file(s)</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="tabs" id="tabs"></div>
+    <div id="inbox"></div>
+    <div class="row" style="justify-content:flex-end; margin-top:10px;">
+      <button class="secondary" id="refresh">Refresh</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <div class="modal" id="modal"><button class="close" id="modalClose">✕ Close</button><div id="modalBody"></div></div>
+
+<script src="/app.js"></script>
+</body>
+</html>
