@@ -1,0 +1,24 @@
+# Compiled binary
+/clipmuxd
+/clipmuxd.exe
+/easyconnect
+/easyconnect.exe
+*.exe
+*.exe~
+
+# Local runtime data (auth token, inbox — NEVER commit)
+/token
+/inbox/
+/.clipmuxd-data/
+# (user-data dirs live in %USERPROFILE%, not in the repo, so no broad pattern needed)
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Go
+/vendor/
+*.test
+*.out
