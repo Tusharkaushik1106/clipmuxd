@@ -16,13 +16,16 @@ func copyToClipboard(text string) {
 	}
 }
 
-// clipboardImageScript is a constant — the file path is passed in as a
-// PowerShell parameter via the argument vector, NOT interpolated into the
-// script string. This eliminates any possibility of command injection from a
-// crafted filename containing backticks, $(...), newlines, quotes, etc.
+// clipboardImageScript reads the target path from the CLIPMUXD_IMG environment
+// variable — NOT from a script parameter and NOT interpolated into the script
+// text. Passing via env var is the most robust way to hand an arbitrary string
+// into a `powershell -Command` invocation: there's no arg-parsing involved and
+// no shell quoting to get wrong, so a malicious filename can't break out.
 const clipboardImageScript = `
-param([Parameter(Mandatory=$true)][string]$Path)
 $ErrorActionPreference = 'Stop'
+$path = $env:CLIPMUXD_IMG
+if (-not $path) { exit 2 }
+
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
@@ -30,13 +33,13 @@ $data = New-Object System.Windows.Forms.DataObject
 
 # 1. File drop — original bytes, zero re-encode. Target: Discord, Slack, Word, Chrome upload, etc.
 $files = New-Object System.Collections.Specialized.StringCollection
-[void]$files.Add($Path)
+[void]$files.Add($path)
 $data.SetFileDropList($files)
 
 # 2. Bitmap — for Paint/Photoshop which only accept raw pixels. Loaded from a
 #    memory copy so the file isn't locked after we return.
 try {
-  $bytes = [System.IO.File]::ReadAllBytes($Path)
+  $bytes = [System.IO.File]::ReadAllBytes($path)
   $ms = New-Object System.IO.MemoryStream(,$bytes)
   $img = [System.Drawing.Image]::FromStream($ms)
   $data.SetImage($img)
@@ -48,14 +51,15 @@ try {
 `
 
 // copyImageToClipboard puts an image on the Windows clipboard losslessly.
-// See clipboardImageScript for details on the dual representation.
+// Dual-representation: file drop (target apps get original bytes) + bitmap
+// (Paint/Photoshop get raw pixels).
 func copyImageToClipboard(path string) {
 	cmd := exec.Command("powershell.exe",
 		"-NoProfile", "-NonInteractive", "-STA",
 		"-ExecutionPolicy", "Bypass",
 		"-Command", clipboardImageScript,
-		"-Path", path,
 	)
+	cmd.Env = append(cmd.Environ(), "CLIPMUXD_IMG="+path)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		log.Printf("clipboard image: %v (%s)", err, strings.TrimSpace(string(out)))
 	}
