@@ -1,0 +1,13 @@
+# Tell GitHub Linguist that the embedded web UI is a small frontend for a Go
+# project, so the repo language bar reflects the actual codebase (Go).
+internal/server/web/*   linguist-detectable=true
+internal/server/web/*   linguist-documentation=false
+
+# Count Go as the primary language; treat HTML/JS as assets not primary.
+*.go        linguist-detectable=true
+*.html      linguist-detectable=true linguist-generated=false
+*.js        linguist-detectable=true linguist-generated=false
+
+# Exclude the web assets entirely from language stats — most accurate since
+# they live inside a Go binary, not as a standalone frontend.
+internal/server/web/**  linguist-vendored=true
